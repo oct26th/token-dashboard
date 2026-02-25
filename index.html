@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#00ffcc">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Token Dashboard">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="NERV Token 費用監控儀表板 - 即時追蹤 AI 使用成本">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96x96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128x128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512x512.png">
+
+    <!-- Apple Splash Screens -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <title>Token Dashboard | NERV</title>
+
+    <style>
+        /* ===========================
+           CSS Variables & Reset
+        =========================== */
+        :root {
+            --neon-green: #00ffcc;
+            --neon-pink: #ff00ff;
+            --neon-blue: #00d2ff;
+            --neon-yellow: #ffff00;
+            --bg-dark: #050505;
+            --bg-card: rgba(10, 10, 20, 0.95);
+            --bg-card-hover: rgba(0, 255, 204, 0.05);
+            --border-neon: rgba(0, 255, 204, 0.3);
+            --text-primary: #e0e0e0;
+            --text-muted: #666;
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html {
+            height: 100%;
+            overflow-x: hidden;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100%;
+            background-color: var(--bg-dark);
+            background-image:
+                radial-gradient(circle at 50% 20%, rgba(0, 255, 204, 0.04) 0%, transparent 70%),
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+            background-size: 100% 100%, 100% 4px, 3px 100%;
+            color: var(--text-primary);
+            font-family: 'Segoe UI', Roboto, 'PingFang TC', 'Noto Sans TC', sans-serif;
+            overflow-x: hidden;
+            /* 支援安全區域（iPhone 劉海/底部） */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+        }
+
+        /* ===========================
+           離線狀態提示條
+        =========================== */
+        #offline-banner {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 100, 0, 0.9);
+            color: #fff;
+            text-align: center;
+            padding: 8px 16px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            letter-spacing: 1px;
+        }
+
+        #offline-banner.show {
+            display: block;
+        }
+
+        /* ===========================
+           安裝提示橫幅
+        =========================== */
+        #install-banner {
+            display: none;
+            position: fixed;
+            bottom: calc(16px + var(--safe-area-bottom));
+            left: 16px;
+            right: 16px;
+            background: linear-gradient(135deg, rgba(0,30,25,0.97), rgba(0,20,15,0.97));
+            border: 1px solid var(--neon-green);
+            border-radius: 12px;
+            padding: 16px;
+            z-index: 999;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), 0 8px 32px rgba(0,0,0,0.8);
+        }
+
+        #install-banner.show {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #install-banner .install-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        #install-banner .install-text {
+            flex: 1;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        #install-banner .install-text strong {
+            color: var(--neon-green);
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        #install-banner .install-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-install {
+            background: var(--neon-green);
+            color: #000;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            letter-spacing: 1px;
+            touch-action: manipulation;
+        }
+
+        .btn-dismiss {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        /* ===========================
+           Header
+        =========================== */
+        .header {
+            text-align: center;
+            padding: 24px 20px 16px;
+            border-bottom: 1px solid var(--border-neon);
+            position: relative;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: clamp(1.2rem, 5vw, 2rem);
+            letter-spacing: clamp(0.1rem, 2vw, 0.4rem);
+            text-transform: uppercase;
+            text-shadow: 0 0 15px var(--neon-green), 0 0 30px rgba(0,255,204,0.3);
+            color: #fff;
+        }
+
+        .header .subtitle {
+            margin: 6px 0 0;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: var(--neon-green);
+            border-radius: 50%;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-green); }
+            50% { opacity: 0.4; box-shadow: none; }
+        }
+
+        /* ===========================
+           Navigation Tabs (手機導覽)
+        =========================== */
+        .nav-tabs {
+            display: flex;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 12px 16px 0;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .nav-tabs::-webkit-scrollbar { display: none; }
+
+        .nav-tab {
+            flex-shrink: 0;
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            letter-spacing: 1px;
+            touch-action: manipulation;
+            transition: all 0.2s;
+        }
+
+        .nav-tab.active {
+            background: rgba(0, 255, 204, 0.1);
+            border-color: var(--border-neon);
+            color: var(--neon-green);
+        }
+
+        /* ===========================
+           Dashboard - 垂直滾動卡片佈局
+        =========================== */
+        .dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 0;
+        }
+
+        /* 統計數字橫排區 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            background: rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border-neon);
+        }
+
+        .stat-item {
+            background: var(--bg-dark);
+            padding: 16px 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: clamp(1.2rem, 4vw, 1.8rem);
+            font-weight: bold;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px rgba(0,255,204,0.5);
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* 卡片區域 */
+        .cards-container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-neon);
+            border-left: 4px solid var(--neon-green);
+            border-radius: 8px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            /* 觸控回饋 */
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+            transition: all 0.2s ease;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, var(--neon-green), transparent);
+            opacity: 0.5;
+        }
+
+        /* 手機觸控回饋：按下效果 */
+        @media (hover: none) {
+            .card:active {
+                background: var(--bg-card-hover);
+                border-color: var(--neon-green);
+                transform: scale(0.99);
+            }
+        }
+
+        /* 桌面 hover 效果 */
+        @media (hover: hover) {
+            .card:hover {
+                box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
+                border-color: var(--neon-green);
+                transform: translateY(-2px);
+            }
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card h2 {
+            margin: 0;
+            color: var(--neon-green);
+            font-size: 0.95rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .card-badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid currentColor;
+            letter-spacing: 1px;
+        }
+
+        .badge-active { color: var(--neon-green); }
+        .badge-pending { color: var(--neon-yellow); }
+        .badge-info { color: var(--neon-blue); }
+
+        .card-content {
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* ===========================
+           Tags
+        =========================== */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .tag {
+            background: rgba(0, 255, 204, 0.08);
+            border: 1px solid rgba(0, 255, 204, 0.4);
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            color: var(--neon-green);
+            letter-spacing: 0.5px;
+        }
+
+        /* ===========================
+           Flow Diagram
+        =========================== */
+        .flow-diagram {
+            margin-top: 14px;
+            padding: 12px;
+            background: rgba(0, 255, 204, 0.04);
+            border-radius: 6px;
+            border: 1px solid rgba(0, 255, 204, 0.15);
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            font-size: 0.8rem;
+            color: rgba(0, 255, 204, 0.7);
+            letter-spacing: 0.5px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        /* ===========================
+           List Styles
+        =========================== */
+        ul {
+            padding-left: 18px;
+            margin: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        li:last-child { margin-bottom: 0; }
+
+        .highlight {
+            color: var(--neon-pink);
+            font-weight: 600;
+        }
+
+        .discount-tag {
+            color: #00ff88;
+            font-weight: bold;
+            font-size: 0.85em;
+            background: rgba(0,255,136,0.1);
+            padding: 1px 6px;
+            border-radius: 3px;
+        }
+
+        /* ===========================
+           TBD Status
+        =========================== */
+        .status-tbd {
+            text-align: center;
+            padding: 24px 0;
+            color: var(--text-muted);
+        }
+
+        .tbd-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+            color: rgba(0,255,204,0.3);
+            font-family: monospace;
+            letter-spacing: 4px;
+        }
+
+        /* ===========================
+           Progress Bar
+        =========================== */
+        .progress-bar-wrap {
+            margin-top: 14px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 3px;
+            background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+            box-shadow: 0 0 8px var(--neon-green);
+            transition: width 1s ease;
+        }
+
+        .progress-fill.warning {
+            background: linear-gradient(90deg, #ffaa00, #ff5500);
+            box-shadow: 0 0 8px #ffaa00;
+        }
+
+        /* ===========================
+           Bottom Navigation Bar
+        =========================== */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            bottom: var(--safe-area-bottom);
+            background: rgba(5, 5, 5, 0.95);
+            border-top: 1px solid var(--border-neon);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 6px 20px;
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            touch-action: manipulation;
+            transition: color 0.2s;
+            border-radius: 8px;
+        }
+
+        .nav-item.active {
+            color: var(--neon-green);
+        }
+
+        .nav-item:active {
+            background: rgba(0,255,204,0.08);
+        }
+
+        .nav-icon {
+            font-size: 1.3rem;
+            line-height: 1;
+        }
+
+        /* ===========================
+           Footer (Desktop) / Spacer (Mobile)
+        =========================== */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.7rem;
+            color: #333;
+            letter-spacing: 2px;
+            /* 為底部導覽列留空間 */
+            padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+        }
+
+        /* ===========================
+           Desktop: 格狀佈局 (≥ 768px)
+        =========================== */
+        @media (min-width: 768px) {
+            .header { padding: 40px 40px 20px; }
+            .header h1 { font-size: 2.5rem; letter-spacing: 0.5rem; }
+
+            .nav-tabs { display: none; }
+            .bottom-nav { display: none; }
+
+            .stats-row {
+                grid-template-columns: repeat(6, 1fr);
+            }
+
+            .cards-container {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                padding: 30px;
+                gap: 24px;
+            }
+
+            .card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 0 30px rgba(0, 255, 204, 0.25);
+            }
+
+            .footer {
+                padding-bottom: 40px;
+            }
+        }
+
+        /* ===========================
+           Small Mobile (< 375px)
+        =========================== */
+        @media (max-width: 374px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stat-item:last-child {
+                grid-column: span 2;
+            }
+        }
+
+        /* ===========================
+           Loading Animation
+        =========================== */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(transparent, rgba(0,255,204,0.15), transparent);
+            animation: scanline 4s linear infinite;
+            pointer-events: none;
+            z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 掃描線裝飾效果 -->
+    <div class="scanline"></div>
+
+    <!-- 離線提示橫幅 -->
+    <div id="offline-banner">
+        ⚡ 離線模式 · NERV 通訊中斷 · 顯示緩存數據
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <h1><span class="status-dot"></span>Token 費用儀表板</h1>
+        <p class="subtitle">PROJECT: NEON REVENUE // NERV INFORMATION DIV.</p>
+    </div>
+
+    <!-- 導覽分頁 (手機版) -->
+    <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="overview">總覽</button>
+        <button class="nav-tab" data-tab="architecture">架構</button>
+        <button class="nav-tab" data-tab="pricing">定價</button>
+        <button class="nav-tab" data-tab="features">功能</button>
+    </div>
+
+    <!-- 統計數字橫排 -->
+    <div class="stats-row">
+        <div class="stat-item">
+            <div class="stat-value">4</div>
+            <div class="stat-label">Agents</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="stat-tokens">—</div>
+            <div class="stat-label">Tokens/日</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value">90%</div>
+            <div class="stat-label">緩存折扣</div>
+        </div>
+    </div>
+
+    <!-- 主要內容 -->
+    <div class="dashboard">
+        <div class="cards-container">
+
+            <!-- REI: 架構分析 -->
+            <div class="card" data-section="architecture">
+                <div class="card-header">
+                    <h2>🔷 REI: 架構分析</h2>
+                    <span class="card-badge badge-active">ACTIVE</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>數據來源：</strong><br>Session JSON/JSONL · Subagent Runs · CLI Status API</p>
+                    <p><strong>技術堆棧：</strong></p>
+                    <div class="tech-stack">
+                        <span class="tag">Node.js</span>
+                        <span class="tag">Express</span>
+                        <span class="tag">SQLite</span>
+                        <span class="tag">Chart.js</span>
+                        <span class="tag">PWA</span>
+                    </div>
+                    <div class="flow-diagram">
+                        Cron 採集 → SQLite → REST API → PWA Frontend
+                    </div>
+                    <!-- 預算進度條 -->
+                    <div class="progress-bar-wrap">
+                        <div class="progress-label">
+                            <span>本月預算使用量</span>
+                            <span>$12.4 / $50</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 24.8%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MARI: 定價策略 -->
+            <div class="card" data-section="pricing">
+                <div class="card-header">
+                    <h2>💗 MARI: 市場定價</h2>
+                    <span class="card-badge badge-info">ANALYSIS</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>主流定價：</strong><br>Input / Output 分開計價</p>
+                    <ul>
+                        <li>按量計費 (Pay-as-you-go)</li>
+                        <li>Cached 調用：<span class="discount-tag">↓ 90% 折扣</span></li>
+                        <li>Batch 批處理：<span class="discount-tag">↓ 50% 折扣</span></li>
+                    </ul>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-label">
+                            <span>緩存命中率</span>
+                            <span>73%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: 73%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SHINJI: 工作量評估 -->
+            <div class="card" data-section="shinji">
+                <div class="card-header">
+                    <h2>🟢 SHINJI: 工作量評估</h2>
+                    <span class="card-badge badge-pending">TBD</span>
+                </div>
+                <div class="card-content">
+                    <div class="status-tbd">
+                        <div class="tbd-icon">[ TBD ]</div>
+                        <p style="margin: 0; font-size: 0.85rem;">數據尚未回傳<br>處於評估階段...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 建議功能 -->
+            <div class="card" data-section="features">
+                <div class="card-header">
+                    <h2>⚡ 建議功能清單</h2>
+                    <span class="card-badge badge-active">v1.0</span>
+                </div>
+                <div class="card-content">
+                    <ul>
+                        <li><span class="highlight">即時消耗監控：</span>動態呈現各 Agent 的 Token 支出。</li>
+                        <li><span class="highlight">預算熔斷機制：</span>當成本接近閾值時自動告警。</li>
+                        <li><span class="highlight">緩存優化建議：</span>分析高頻重複請求以節省 90% 費用。</li>
+                        <li><span class="highlight">多維度報告：</span>按 Session 或 Subagent 彙總成本。</li>
+                    </ul>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        NERV — INFORMATION ANALYSIS DIVISION // INTERNAL USE ONLY<br>
+        <span id="last-updated" style="color: #2a2a2a">LAST SYNC: —</span>
+    </div>
+
+    <!-- 底部導覽列 (手機版) -->
+    <nav class="bottom-nav">
+        <div class="nav-item active">
+            <span class="nav-icon">📊</span>
+            <span>總覽</span>
+        </div>
+        <div class="nav-item">
+            <span class="nav-icon">📈</span>
+            <span>趨勢</span>
+        </div>
+        <div class="nav-item">
+            <span class="nav-icon">🔔</span>
+            <span>告警</span>
+        </div>
+        <div class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span>設定</span>
+        </div>
+    </nav>
+
+    <!-- PWA 安裝橫幅 -->
+    <div id="install-banner">
+        <div class="install-icon">📲</div>
+        <div class="install-text">
+            <strong>添加到主螢幕</strong>
+            像原生 App 一樣使用 Token Dashboard
+        </div>
+        <div class="install-actions">
+            <button class="btn-install" id="btn-install">安裝</button>
+            <button class="btn-dismiss" id="btn-dismiss">稍後</button>
+        </div>
+    </div>
+
+    <script>
+    // ============================================
+    // Service Worker 註冊
+    // ============================================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/dashboard-pwa/sw.js', {
+                scope: '/dashboard-pwa/'
+            }).then(reg => {
+                console.log('[NERV] Service Worker registered. Scope:', reg.scope);
+            }).catch(err => {
+                console.error('[NERV] Service Worker registration failed:', err);
+            });
+        });
+    }
+
+    // ============================================
+    // 離線/上線狀態偵測
+    // ============================================
+    const offlineBanner = document.getElementById('offline-banner');
+
+    function updateOnlineStatus() {
+        if (!navigator.onLine) {
+            offlineBanner.classList.add('show');
+        } else {
+            offlineBanner.classList.remove('show');
+        }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // ============================================
+    // PWA 安裝提示
+    // ============================================
+    let deferredPrompt = null;
+    const installBanner = document.getElementById('install-banner');
+    const btnInstall = document.getElementById('btn-install');
+    const btnDismiss = document.getElementById('btn-dismiss');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+
+        // 延遲 3 秒顯示安裝橫幅
+        setTimeout(() => {
+            if (!localStorage.getItem('pwa-install-dismissed')) {
+                installBanner.classList.add('show');
+            }
+        }, 3000);
+    });
+
+    btnInstall?.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            installBanner.classList.remove('show');
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log('[NERV] PWA install outcome:', outcome);
+            deferredPrompt = null;
+        }
+    });
+
+    btnDismiss?.addEventListener('click', () => {
+        installBanner.classList.remove('show');
+        localStorage.setItem('pwa-install-dismissed', '1');
+    });
+
+    // 安裝成功後隱藏
+    window.addEventListener('appinstalled', () => {
+        installBanner.classList.remove('show');
+        console.log('[NERV] PWA installed successfully. AT Field: MAXIMUM');
+    });
+
+    // ============================================
+    // 最後同步時間
+    // ============================================
+    const lastUpdatedEl = document.getElementById('last-updated');
+    if (lastUpdatedEl) {
+        const now = new Date();
+        const timeStr = now.toLocaleString('zh-TW', {
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit'
+        });
+        lastUpdatedEl.textContent = `LAST SYNC: ${timeStr}`;
+    }
+
+    // ============================================
+    // 模擬 Token 數據動畫
+    // ============================================
+    const statTokens = document.getElementById('stat-tokens');
+    let count = 0;
+    const target = 128;
+    const interval = setInterval(() => {
+        count = Math.min(count + Math.ceil(target / 20), target);
+        if (statTokens) statTokens.textContent = count + 'K';
+        if (count >= target) clearInterval(interval);
+    }, 50);
+
+    // ============================================
+    // 底部導覽列互動
+    // ============================================
+    document.querySelectorAll('.nav-item').forEach((item, index) => {
+        item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            item.classList.add('active');
+        });
+    });
+
+    // ============================================
+    // 分頁導覽 (手機版)
+    // ============================================
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+        });
+    });
+
+    console.log('[NERV] Token Dashboard PWA Initialized. Sync rate: 100%');
+    </script>
+</body>
+</html>

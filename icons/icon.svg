@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#050505"/>
+  <rect x="0" y="0" width="512" height="32" fill="#00ffcc"/>
+  <rect x="0" y="480" width="512" height="32" fill="#00ffcc"/>
+  <rect x="0" y="0" width="32" height="512" fill="#00ffcc"/>
+  <rect x="480" y="0" width="32" height="512" fill="#00ffcc"/>
+  <rect x="100" y="100" width="312" height="60" fill="#00ffcc"/>
+  <rect x="216" y="100" width="80" height="312" fill="#00ffcc"/>
+  <text x="256" y="470" font-family="monospace" font-size="32" fill="#00331a" text-anchor="middle" letter-spacing="2">NERV</text>
+</svg>

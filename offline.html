@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#00ffcc">
+    <title>離線中 | Token Dashboard</title>
+    <style>
+        :root { --neon-green: #00ffcc; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: #050505;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 40px 24px;
+        }
+        .icon { font-size: 4rem; margin-bottom: 24px; opacity: 0.6; }
+        h1 {
+            font-size: 1.5rem;
+            color: var(--neon-green);
+            text-shadow: 0 0 15px var(--neon-green);
+            letter-spacing: 3px;
+            margin-bottom: 16px;
+        }
+        p { color: #666; line-height: 1.6; font-size: 0.9rem; }
+        .code {
+            margin-top: 32px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #333;
+            letter-spacing: 1px;
+        }
+        .btn-retry {
+            margin-top: 32px;
+            padding: 12px 32px;
+            background: transparent;
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            letter-spacing: 2px;
+        }
+        .btn-retry:active { background: rgba(0,255,204,0.1); }
+    </style>
+</head>
+<body>
+    <div class="icon">⚡</div>
+    <h1>NERV 通訊中斷</h1>
+    <p>目前處於離線狀態<br>請檢查網路連線後重試</p>
+    <button class="btn-retry" onclick="location.reload()">重新連線</button>
+    <div class="code">
+        NERV // OFFLINE MODE // AT FIELD INACTIVE<br>
+        Cached data may be available on main dashboard
+    </div>
+</body>
+</html>
