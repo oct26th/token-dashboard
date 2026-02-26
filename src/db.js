@@ -1,59 +1,50 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'dashboard.db');
+const DATABASE_URL = process.env.DATABASE_URL ||
+  'postgresql://root:iZax24t76H0zSq5j8R3lCuvwbUW9V1XT@8.209.236.248:30300/zeabur';
 
-let db;
+const pool = new Pool({ connectionString: DATABASE_URL });
 
-function initDb() {
-  const dbPath = path.dirname(DB_PATH);
-  const fs = require('fs');
-  if (!fs.existsSync(dbPath)) {
-    fs.mkdirSync(dbPath, { recursive: true });
-  }
-
-  db = new Database(DB_PATH);
-  
-  // Create tables
-  db.exec(`
+async function initDb() {
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS rates (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       model TEXT UNIQUE NOT NULL,
       provider TEXT,
       input_rate REAL DEFAULT 0,
       output_rate REAL DEFAULT 0,
       cache_read_rate REAL DEFAULT 0,
       cache_write_rate REAL DEFAULT 0,
-      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+      updated_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
     );
 
     CREATE TABLE IF NOT EXISTS daily_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       agent_id TEXT NOT NULL,
       date TEXT NOT NULL,
-      input_tokens INTEGER DEFAULT 0,
-      output_tokens INTEGER DEFAULT 0,
-      cache_read_tokens INTEGER DEFAULT 0,
-      cache_write_tokens INTEGER DEFAULT 0,
-      total_tokens INTEGER DEFAULT 0,
+      input_tokens BIGINT DEFAULT 0,
+      output_tokens BIGINT DEFAULT 0,
+      cache_read_tokens BIGINT DEFAULT 0,
+      cache_write_tokens BIGINT DEFAULT 0,
+      total_tokens BIGINT DEFAULT 0,
       cost REAL DEFAULT 0,
       model TEXT,
-      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
     );
 
     CREATE TABLE IF NOT EXISTS agent_usage (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       agent_id TEXT NOT NULL,
       session_id TEXT,
-      input_tokens INTEGER DEFAULT 0,
-      output_tokens INTEGER DEFAULT 0,
-      cache_read_tokens INTEGER DEFAULT 0,
-      cache_write_tokens INTEGER DEFAULT 0,
-      total_tokens INTEGER DEFAULT 0,
+      input_tokens BIGINT DEFAULT 0,
+      output_tokens BIGINT DEFAULT 0,
+      cache_read_tokens BIGINT DEFAULT 0,
+      cache_write_tokens BIGINT DEFAULT 0,
+      total_tokens BIGINT DEFAULT 0,
       cost REAL DEFAULT 0,
       model TEXT,
-      timestamp INTEGER,
-      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+      timestamp BIGINT,
+      created_at BIGINT DEFAULT EXTRACT(EPOCH FROM NOW())
     );
 
     CREATE INDEX IF NOT EXISTS idx_daily_usage_date ON daily_usage(date);
@@ -61,49 +52,39 @@ function initDb() {
     CREATE INDEX IF NOT EXISTS idx_agent_usage_agent ON agent_usage(agent_id);
   `);
 
-  // Insert default rates if empty
-  const count = db.prepare('SELECT COUNT(*) as cnt FROM rates').get();
-  if (count.cnt === 0) {
-    const insertRate = db.prepare(`
-      INSERT INTO rates (model, provider, input_rate, output_rate, cache_read_rate, cache_write_rate)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-    
+  const { rows } = await pool.query('SELECT COUNT(*) as cnt FROM rates');
+  if (parseInt(rows[0].cnt) === 0) {
     const defaultRates = [
       ['MiniMax-M2.5', 'minimax-portal', 0, 0, 0, 0],
-      ['gemini-3-flash', 'google-antigravity', 0.00035, 0.0007, 0, 0],
+      ['MiniMax-M2.1', 'minimax-portal', 0, 0, 0, 0],
+      ['gemini-3-flash', 'google', 0.00035, 0.0007, 0, 0],
       ['claude-sonnet-4-5-thinking', 'anthropic', 0.003, 0.015, 0.0003, 0.0003],
       ['claude-sonnet-4-5', 'anthropic', 0.003, 0.015, 0.0003, 0.0003],
       ['gpt-4o', 'openai', 0.0025, 0.01, 0, 0],
-      ['gpt-4o-mini', 'openai', 0.00015, 0.0006, 0, 0],
     ];
-    
-    for (const rate of defaultRates) {
-      insertRate.run(...rate);
+    for (const [model, provider, inp, out, cr, cw] of defaultRates) {
+      await pool.query(
+        'INSERT INTO rates (model, provider, input_rate, output_rate, cache_read_rate, cache_write_rate) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (model) DO NOTHING',
+        [model, provider, inp, out, cr, cw]
+      );
     }
   }
 
   console.log('✅ Database initialized');
-  return db;
+  return pool;
 }
 
 function getDb() {
-  if (!db) {
-    initDb();
-  }
-  return db;
+  return pool;
 }
 
-// Get rate for a model
-function getRateForModel(model) {
-  const db = getDb();
-  const rate = db.prepare('SELECT * FROM rates WHERE model = ?').get(model);
-  return rate || { input_rate: 0, output_rate: 0, cache_read_rate: 0, cache_write_rate: 0 };
+async function getRateForModel(model) {
+  const { rows } = await pool.query('SELECT * FROM rates WHERE model = $1', [model]);
+  return rows[0] || { input_rate: 0, output_rate: 0, cache_read_rate: 0, cache_write_rate: 0 };
 }
 
-// Calculate cost based on tokens and model
-function calculateCost(usage, model) {
-  const rate = getRateForModel(model);
+async function calculateCost(usage, model) {
+  const rate = await getRateForModel(model);
   return (
     (usage.input || 0) * rate.input_rate +
     (usage.output || 0) * rate.output_rate +
@@ -112,9 +93,4 @@ function calculateCost(usage, model) {
   );
 }
 
-module.exports = {
-  initDb,
-  getDb,
-  getRateForModel,
-  calculateCost
-};
+module.exports = { initDb, getDb, getRateForModel, calculateCost };

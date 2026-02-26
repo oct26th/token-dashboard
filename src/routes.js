@@ -4,118 +4,50 @@ const { getDb } = require('./db');
 
 const router = express.Router();
 
-// GET /api/usage - All agent token usage
-router.get('/usage', (req, res) => {
-  try {
-    const data = getAllUsage();
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.get('/usage', async (req, res) => {
+  try { res.json({ success: true, data: await getAllUsage() }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// GET /api/usage/:agentId - Specific agent historical usage
-router.get('/usage/:agentId', (req, res) => {
-  try {
-    const { agentId } = req.params;
-    const data = getAgentUsage(agentId);
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.get('/usage/:agentId', async (req, res) => {
+  try { res.json({ success: true, data: await getAgentUsage(req.params.agentId) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// GET /api/cost/summary - Cost estimation summary
-router.get('/cost/summary', (req, res) => {
-  try {
-    const data = getCostSummary();
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.get('/cost/summary', async (req, res) => {
+  try { res.json({ success: true, data: await getCostSummary() }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// GET /api/cost/daily - Daily cost trend
-router.get('/cost/daily', (req, res) => {
-  try {
-    const days = parseInt(req.query.days) || 30;
-    const data = getDailyCost(days);
-    res.json({
-      success: true,
-      data
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+router.get('/cost/daily', async (req, res) => {
+  try { res.json({ success: true, data: await getDailyCost(parseInt(req.query.days) || 30) }); }
+  catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// GET /api/rates - Get rate table
-router.get('/rates', (req, res) => {
+router.get('/rates', async (req, res) => {
   try {
-    const db = getDb();
-    const rates = db.prepare('SELECT * FROM rates ORDER BY model').all();
-    res.json({
-      success: true,
-      data: rates
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    const { rows } = await getDb().query('SELECT * FROM rates ORDER BY model');
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// PUT /api/rates - Update rates
-router.put('/rates', (req, res) => {
+router.put('/rates', async (req, res) => {
   try {
     const { rates } = req.body;
-    if (!Array.isArray(rates)) {
-      return res.status(400).json({ success: false, error: 'rates should be an array' });
-    }
-
-    const db = getDb();
-    const updateRate = db.prepare(`
-      UPDATE rates 
-      SET input_rate = ?, output_rate = ?, cache_read_rate = ?, cache_write_rate = ?, updated_at = ?
-      WHERE model = ?
-    `);
-
-    const now = Math.floor(Date.now() / 1000);
-    
-    for (const rate of rates) {
-      if (!rate.model) {
-        continue;
-      }
-      updateRate.run(
-        rate.input_rate || 0,
-        rate.output_rate || 0,
-        rate.cache_read_rate || 0,
-        rate.cache_write_rate || 0,
-        now,
-        rate.model
+    if (!Array.isArray(rates)) return res.status(400).json({ success: false, error: 'rates must be array' });
+    const pool = getDb();
+    for (const r of rates) {
+      if (!r.model) continue;
+      await pool.query(
+        `UPDATE rates SET input_rate=$1, output_rate=$2, cache_read_rate=$3, cache_write_rate=$4, updated_at=EXTRACT(EPOCH FROM NOW()) WHERE model=$5`,
+        [r.input_rate || 0, r.output_rate || 0, r.cache_read_rate || 0, r.cache_write_rate || 0, r.model]
       );
     }
-
-    const updatedRates = db.prepare('SELECT * FROM rates ORDER BY model').all();
-    
-    res.json({
-      success: true,
-      data: updatedRates,
-      message: 'Rates updated successfully'
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
+    const { rows } = await pool.query('SELECT * FROM rates ORDER BY model');
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Health check
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

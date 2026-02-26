@@ -33,23 +33,22 @@ app.get('/', (req, res) => {
   });
 });
 
-// Initialize database
-initDb();
+// Initialize database then start
+(async () => {
+  await initDb();
 
-// Initial data collection
-console.log('📥 Initial data collection...');
-collectUsageData();
+  console.log('📥 Initial data collection...');
+  await collectUsageData();
 
-// Schedule cron job to collect data every 5 minutes
-cron.schedule('*/5 * * * *', () => {
-  console.log('🔄 Scheduled data collection...');
-  collectUsageData();
-});
+  cron.schedule('*/5 * * * *', async () => {
+    console.log('🔄 Scheduled data collection...');
+    await collectUsageData();
+  });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Token Dashboard API running on port ${PORT}`);
-  console.log(`📊 API available at http://localhost:${PORT}/api`);
-});
+  app.listen(PORT, () => {
+    console.log(`✅ Token Dashboard API running on port ${PORT}`);
+    console.log(`📊 API available at http://localhost:${PORT}/api`);
+  });
+})();
 
 module.exports = app;
