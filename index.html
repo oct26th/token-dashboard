@@ -2,911 +2,774 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#00ffcc">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Token Dashboard">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="description" content="NERV Token 費用監控儀表板 - 即時追蹤 AI 使用成本">
+    <title>NERV | Token Dashboard</title>
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72x72.png">
-    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96x96.png">
-    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128x128.png">
-    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144x144.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512x512.png">
-
-    <!-- Apple Splash Screens -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-
-    <title>Token Dashboard | NERV</title>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        /* ===========================
-           CSS Variables & Reset
-        =========================== */
         :root {
             --neon-green: #00ffcc;
-            --neon-pink: #ff00ff;
+            --neon-green-glow: rgba(0, 255, 204, 0.4);
+            --neon-red: #ff3e3e;
             --neon-blue: #00d2ff;
-            --neon-yellow: #ffff00;
-            --bg-dark: #050505;
-            --bg-card: rgba(10, 10, 20, 0.95);
-            --bg-card-hover: rgba(0, 255, 204, 0.05);
-            --border-neon: rgba(0, 255, 204, 0.3);
-            --text-primary: #e0e0e0;
-            --text-muted: #666;
-            --safe-area-top: env(safe-area-inset-top, 0px);
-            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+            --bg-black: #0a0a0c;
+            --bg-card: rgba(20, 20, 25, 0.8);
+            --border-color: rgba(0, 255, 204, 0.2);
+            --text-main: #e0e0e0;
+            --text-dim: #888;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
 
-        *, *::before, *::after {
+        * {
             box-sizing: border-box;
             -webkit-tap-highlight-color: transparent;
-        }
-
-        html {
-            height: 100%;
-            overflow-x: hidden;
         }
 
         body {
             margin: 0;
             padding: 0;
-            min-height: 100%;
-            background-color: var(--bg-dark);
-            background-image:
-                radial-gradient(circle at 50% 20%, rgba(0, 255, 204, 0.04) 0%, transparent 70%),
-                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
-                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-            background-size: 100% 100%, 100% 4px, 3px 100%;
-            color: var(--text-primary);
-            font-family: 'Segoe UI', Roboto, 'PingFang TC', 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-black);
+            color: var(--text-main);
+            font-family: 'Segoe UI', system-ui, sans-serif;
             overflow-x: hidden;
-            /* 支援安全區域（iPhone 劉海/底部） */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
+            padding-bottom: calc(70px + var(--safe-bottom));
         }
 
-        /* ===========================
-           離線狀態提示條
-        =========================== */
-        #offline-banner {
-            display: none;
+        /* Cyberpunk Grid Background */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(var(--border-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+            opacity: 0.1;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        /* Scanline effect */
+        .scanline {
+            width: 100%;
+            height: 2px;
+            background: rgba(0, 255, 204, 0.1);
             position: fixed;
             top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(255, 100, 0, 0.9);
-            color: #fff;
-            text-align: center;
-            padding: 8px 16px;
-            font-size: 0.8rem;
             z-index: 1000;
-            letter-spacing: 1px;
+            pointer-events: none;
+            animation: scan 8s linear infinite;
         }
 
-        #offline-banner.show {
-            display: block;
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
         }
 
-        /* ===========================
-           安裝提示橫幅
-        =========================== */
-        #install-banner {
-            display: none;
-            position: fixed;
-            bottom: calc(16px + var(--safe-area-bottom));
-            left: 16px;
-            right: 16px;
-            background: linear-gradient(135deg, rgba(0,30,25,0.97), rgba(0,20,15,0.97));
-            border: 1px solid var(--neon-green);
-            border-radius: 12px;
-            padding: 16px;
-            z-index: 999;
-            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3), 0 8px 32px rgba(0,0,0,0.8);
-        }
-
-        #install-banner.show {
+        /* Header */
+        header {
+            padding: calc(20px + var(--safe-top)) 20px 10px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(10, 10, 12, 0.9);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            gap: 12px;
         }
 
-        #install-banner .install-icon {
-            font-size: 2rem;
-            flex-shrink: 0;
-        }
-
-        #install-banner .install-text {
-            flex: 1;
-            font-size: 0.85rem;
-            line-height: 1.4;
-        }
-
-        #install-banner .install-text strong {
-            color: var(--neon-green);
-            display: block;
-            margin-bottom: 2px;
-        }
-
-        #install-banner .install-actions {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            flex-shrink: 0;
-        }
-
-        .btn-install {
-            background: var(--neon-green);
-            color: #000;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: bold;
-            font-size: 0.8rem;
-            cursor: pointer;
-            letter-spacing: 1px;
-            touch-action: manipulation;
-        }
-
-        .btn-dismiss {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--text-muted);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            cursor: pointer;
-            touch-action: manipulation;
-        }
-
-        /* ===========================
-           Header
-        =========================== */
-        .header {
-            text-align: center;
-            padding: 24px 20px 16px;
-            border-bottom: 1px solid var(--border-neon);
-            position: relative;
-        }
-
-        .header h1 {
-            margin: 0;
-            font-size: clamp(1.2rem, 5vw, 2rem);
-            letter-spacing: clamp(0.1rem, 2vw, 0.4rem);
-            text-transform: uppercase;
-            text-shadow: 0 0 15px var(--neon-green), 0 0 30px rgba(0,255,204,0.3);
-            color: #fff;
-        }
-
-        .header .subtitle {
-            margin: 6px 0 0;
-            font-size: 0.7rem;
-            color: var(--text-muted);
+        .logo {
+            font-weight: 900;
             letter-spacing: 2px;
-        }
-
-        .status-dot {
-            display: inline-block;
-            width: 6px;
-            height: 6px;
-            background: var(--neon-green);
-            border-radius: 50%;
-            margin-right: 6px;
-            animation: pulse 2s infinite;
-            vertical-align: middle;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 4px var(--neon-green); }
-            50% { opacity: 0.4; box-shadow: none; }
-        }
-
-        /* ===========================
-           Navigation Tabs (手機導覽)
-        =========================== */
-        .nav-tabs {
-            display: flex;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            padding: 12px 16px 0;
-            gap: 8px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .nav-tabs::-webkit-scrollbar { display: none; }
-
-        .nav-tab {
-            flex-shrink: 0;
-            padding: 8px 16px;
-            background: transparent;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-bottom: none;
-            border-radius: 8px 8px 0 0;
-            color: var(--text-muted);
-            font-size: 0.8rem;
-            cursor: pointer;
-            letter-spacing: 1px;
-            touch-action: manipulation;
-            transition: all 0.2s;
-        }
-
-        .nav-tab.active {
-            background: rgba(0, 255, 204, 0.1);
-            border-color: var(--border-neon);
             color: var(--neon-green);
+            text-shadow: 0 0 10px var(--neon-green-glow);
+            font-size: 1.2rem;
         }
 
-        /* ===========================
-           Dashboard - 垂直滾動卡片佈局
-        =========================== */
-        .dashboard {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-            padding: 0;
-        }
-
-        /* 統計數字橫排區 */
-        .stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1px;
-            background: rgba(255,255,255,0.05);
-            border-bottom: 1px solid var(--border-neon);
-        }
-
-        .stat-item {
-            background: var(--bg-dark);
-            padding: 16px 12px;
-            text-align: center;
-        }
-
-        .stat-value {
-            font-size: clamp(1.2rem, 4vw, 1.8rem);
-            font-weight: bold;
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border: 1px solid var(--neon-green);
+            border-radius: 4px;
             color: var(--neon-green);
-            text-shadow: 0 0 10px rgba(0,255,204,0.5);
-            line-height: 1;
-            margin-bottom: 4px;
-        }
-
-        .stat-label {
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            letter-spacing: 1px;
             text-transform: uppercase;
         }
 
-        /* 卡片區域 */
-        .cards-container {
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+        /* Content Container */
+        .container {
+            padding: 20px;
+            display: none; /* Hidden by default, toggled via JS */
         }
 
+        .container.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
         .card {
             background: var(--bg-card);
-            border: 1px solid var(--border-neon);
-            border-left: 4px solid var(--neon-green);
-            border-radius: 8px;
-            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
             position: relative;
             overflow: hidden;
-            /* 觸控回饋 */
-            -webkit-user-select: none;
-            user-select: none;
-            touch-action: manipulation;
-            transition: all 0.2s ease;
         }
 
         .card::before {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, var(--neon-green), transparent);
-            opacity: 0.5;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
+            background: var(--neon-green);
         }
 
-        /* 手機觸控回饋：按下效果 */
-        @media (hover: none) {
-            .card:active {
-                background: var(--bg-card-hover);
-                border-color: var(--neon-green);
-                transform: scale(0.99);
-            }
-        }
-
-        /* 桌面 hover 效果 */
-        @media (hover: hover) {
-            .card:hover {
-                box-shadow: 0 0 20px rgba(0, 255, 204, 0.15);
-                border-color: var(--neon-green);
-                transform: translateY(-2px);
-            }
-        }
-
-        .card-header {
+        .card-title {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
+            gap: 8px;
         }
 
-        .card h2 {
-            margin: 0;
-            color: var(--neon-green);
-            font-size: 0.95rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-        }
-
-        .card-badge {
-            font-size: 0.65rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            border: 1px solid currentColor;
-            letter-spacing: 1px;
-        }
-
-        .badge-active { color: var(--neon-green); }
-        .badge-pending { color: var(--neon-yellow); }
-        .badge-info { color: var(--neon-blue); }
-
-        .card-content {
-            font-size: 0.9rem;
-            line-height: 1.6;
-        }
-
-        /* ===========================
-           Tags
-        =========================== */
-        .tech-stack {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 12px;
-        }
-
-        .tag {
-            background: rgba(0, 255, 204, 0.08);
-            border: 1px solid rgba(0, 255, 204, 0.4);
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            color: var(--neon-green);
-            letter-spacing: 0.5px;
-        }
-
-        /* ===========================
-           Flow Diagram
-        =========================== */
-        .flow-diagram {
-            margin-top: 14px;
-            padding: 12px;
-            background: rgba(0, 255, 204, 0.04);
-            border-radius: 6px;
-            border: 1px solid rgba(0, 255, 204, 0.15);
-            font-family: 'Courier New', monospace;
-            text-align: center;
-            font-size: 0.8rem;
-            color: rgba(0, 255, 204, 0.7);
-            letter-spacing: 0.5px;
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-
-        /* ===========================
-           List Styles
-        =========================== */
-        ul {
-            padding-left: 18px;
-            margin: 0;
-        }
-
-        li {
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
-
-        li:last-child { margin-bottom: 0; }
-
-        .highlight {
-            color: var(--neon-pink);
-            font-weight: 600;
-        }
-
-        .discount-tag {
-            color: #00ff88;
+        .card-value {
+            font-size: 1.8rem;
             font-weight: bold;
-            font-size: 0.85em;
-            background: rgba(0,255,136,0.1);
-            padding: 1px 6px;
-            border-radius: 3px;
+            color: var(--neon-green);
         }
 
-        /* ===========================
-           TBD Status
-        =========================== */
-        .status-tbd {
-            text-align: center;
-            padding: 24px 0;
-            color: var(--text-muted);
+        .card-unit {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-left: 5px;
         }
 
-        .tbd-icon {
-            font-size: 2rem;
-            margin-bottom: 8px;
-            color: rgba(0,255,204,0.3);
-            font-family: monospace;
-            letter-spacing: 4px;
+        /* Grid for stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
         }
 
-        /* ===========================
-           Progress Bar
-        =========================== */
-        .progress-bar-wrap {
-            margin-top: 14px;
+        /* Charts */
+        .chart-container {
+            height: 250px;
+            width: 100%;
         }
 
-        .progress-label {
+        /* List Items */
+        .list-item {
             display: flex;
             justify-content: space-between;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-bottom: 6px;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .progress-bar {
-            height: 6px;
-            background: rgba(255,255,255,0.08);
-            border-radius: 3px;
-            overflow: hidden;
+        .list-item:last-child { border-bottom: none; }
+
+        .item-info { display: flex; align-items: center; gap: 12px; }
+        .item-rank { font-weight: bold; color: var(--neon-green); width: 20px; }
+        .item-name { font-weight: 500; }
+        .item-meta { font-size: 0.75rem; color: var(--text-dim); }
+
+        /* Inputs */
+        .input-group {
+            margin-bottom: 15px;
         }
 
-        .progress-fill {
-            height: 100%;
-            border-radius: 3px;
-            background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
-            box-shadow: 0 0 8px var(--neon-green);
-            transition: width 1s ease;
+        .input-group label {
+            display: block;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            color: var(--text-dim);
         }
 
-        .progress-fill.warning {
-            background: linear-gradient(90deg, #ffaa00, #ff5500);
-            box-shadow: 0 0 8px #ffaa00;
+        input, select {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            color: white;
+            border-radius: 4px;
+            outline: none;
         }
 
-        /* ===========================
-           Bottom Navigation Bar
-        =========================== */
-        .bottom-nav {
+        input:focus {
+            border-color: var(--neon-green);
+            box-shadow: 0 0 5px var(--neon-green-glow);
+        }
+
+        button.primary {
+            width: 100%;
+            background: var(--neon-green);
+            color: black;
+            border: none;
+            padding: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Bottom Nav */
+        nav {
             position: fixed;
             bottom: 0;
             left: 0;
-            right: 0;
-            bottom: var(--safe-area-bottom);
-            background: rgba(5, 5, 5, 0.95);
-            border-top: 1px solid var(--border-neon);
+            width: 100%;
+            background: rgba(10, 10, 12, 0.95);
+            backdrop-filter: blur(15px);
+            border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-around;
-            padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
-            z-index: 100;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            padding: 10px 0 calc(10px + var(--safe-bottom));
+            z-index: 1000;
         }
 
-        .nav-item {
+        .nav-btn {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 3px;
-            padding: 6px 20px;
-            color: var(--text-muted);
-            font-size: 0.65rem;
-            letter-spacing: 1px;
+            gap: 4px;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.7rem;
             cursor: pointer;
-            touch-action: manipulation;
-            transition: color 0.2s;
-            border-radius: 8px;
+            transition: 0.2s;
+            flex: 1;
         }
 
-        .nav-item.active {
+        .nav-btn.active {
             color: var(--neon-green);
         }
 
-        .nav-item:active {
-            background: rgba(0,255,204,0.08);
+        .nav-btn i {
+            font-size: 1.2rem;
         }
 
-        .nav-icon {
-            font-size: 1.3rem;
-            line-height: 1;
-        }
-
-        /* ===========================
-           Footer (Desktop) / Spacer (Mobile)
-        =========================== */
-        .footer {
+        /* Simulator Styles */
+        #sim-result {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px dashed var(--neon-green);
             text-align: center;
-            padding: 20px;
-            font-size: 0.7rem;
-            color: #333;
-            letter-spacing: 2px;
-            /* 為底部導覽列留空間 */
-            padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
         }
 
-        /* ===========================
-           Desktop: 格狀佈局 (≥ 768px)
-        =========================== */
+        .sim-price {
+            font-size: 2rem;
+            color: var(--neon-green);
+            font-weight: bold;
+        }
+
+        /* Responsive */
         @media (min-width: 768px) {
-            .header { padding: 40px 40px 20px; }
-            .header h1 { font-size: 2.5rem; letter-spacing: 0.5rem; }
-
-            .nav-tabs { display: none; }
-            .bottom-nav { display: none; }
-
-            .stats-row {
-                grid-template-columns: repeat(6, 1fr);
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
             }
-
-            .cards-container {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-                padding: 30px;
-                gap: 24px;
+            .stats-grid {
+                grid-template-columns: 1fr 1fr 1fr;
             }
-
-            .card:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 0 30px rgba(0, 255, 204, 0.25);
-            }
-
-            .footer {
-                padding-bottom: 40px;
-            }
-        }
-
-        /* ===========================
-           Small Mobile (< 375px)
-        =========================== */
-        @media (max-width: 374px) {
-            .stats-row {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            .stat-item:last-child {
-                grid-column: span 2;
-            }
-        }
-
-        /* ===========================
-           Loading Animation
-        =========================== */
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
-        }
-
-        .scanline {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(transparent, rgba(0,255,204,0.15), transparent);
-            animation: scanline 4s linear infinite;
-            pointer-events: none;
-            z-index: 9999;
         }
     </style>
 </head>
 <body>
-
-    <!-- 掃描線裝飾效果 -->
     <div class="scanline"></div>
 
-    <!-- 離線提示橫幅 -->
-    <div id="offline-banner">
-        ⚡ 離線模式 · NERV 通訊中斷 · 顯示緩存數據
-    </div>
+    <header>
+        <div class="logo">NERV // TOKEN_OS</div>
+        <div class="status-badge">System Online</div>
+    </header>
 
-    <!-- Header -->
-    <div class="header">
-        <h1><span class="status-dot"></span>Token 費用儀表板</h1>
-        <p class="subtitle">PROJECT: NEON REVENUE // NERV INFORMATION DIV.</p>
-    </div>
-
-    <!-- 導覽分頁 (手機版) -->
-    <div class="nav-tabs">
-        <button class="nav-tab active" data-tab="overview">總覽</button>
-        <button class="nav-tab" data-tab="architecture">架構</button>
-        <button class="nav-tab" data-tab="pricing">定價</button>
-        <button class="nav-tab" data-tab="features">功能</button>
-    </div>
-
-    <!-- 統計數字橫排 -->
-    <div class="stats-row">
-        <div class="stat-item">
-            <div class="stat-value">4</div>
-            <div class="stat-label">Agents</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value" id="stat-tokens">—</div>
-            <div class="stat-label">Tokens/日</div>
-        </div>
-        <div class="stat-item">
-            <div class="stat-value">90%</div>
-            <div class="stat-label">緩存折扣</div>
-        </div>
-    </div>
-
-    <!-- 主要內容 -->
-    <div class="dashboard">
-        <div class="cards-container">
-
-            <!-- REI: 架構分析 -->
-            <div class="card" data-section="architecture">
-                <div class="card-header">
-                    <h2>🔷 REI: 架構分析</h2>
-                    <span class="card-badge badge-active">ACTIVE</span>
-                </div>
-                <div class="card-content">
-                    <p><strong>數據來源：</strong><br>Session JSON/JSONL · Subagent Runs · CLI Status API</p>
-                    <p><strong>技術堆棧：</strong></p>
-                    <div class="tech-stack">
-                        <span class="tag">Node.js</span>
-                        <span class="tag">Express</span>
-                        <span class="tag">SQLite</span>
-                        <span class="tag">Chart.js</span>
-                        <span class="tag">PWA</span>
-                    </div>
-                    <div class="flow-diagram">
-                        Cron 採集 → SQLite → REST API → PWA Frontend
-                    </div>
-                    <!-- 預算進度條 -->
-                    <div class="progress-bar-wrap">
-                        <div class="progress-label">
-                            <span>本月預算使用量</span>
-                            <span>$12.4 / $50</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 24.8%"></div>
-                        </div>
-                    </div>
-                </div>
+    <!-- Page 1: Dashboard -->
+    <div id="page-home" class="container active">
+        <div class="stats-grid">
+            <div class="card">
+                <div class="card-title"><i data-lucide="dollar-sign" size="14"></i> Total Cost</div>
+                <div class="card-value">$42.68</div>
             </div>
+            <div class="card">
+                <div class="card-title"><i data-lucide="cpu" size="14"></i> Tokens</div>
+                <div class="card-value">1.2<span class="card-unit">M</span></div>
+            </div>
+        </div>
 
-            <!-- MARI: 定價策略 -->
-            <div class="card" data-section="pricing">
-                <div class="card-header">
-                    <h2>💗 MARI: 市場定價</h2>
-                    <span class="card-badge badge-info">ANALYSIS</span>
+        <div class="card">
+            <div class="card-title"><i data-lucide="pie-chart" size="14"></i> Model Distribution</div>
+            <div class="chart-container">
+                <canvas id="modelChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page 2: Trends -->
+    <div id="page-trends" class="container">
+        <div class="card">
+            <div class="card-title"><i data-lucide="trending-up" size="14"></i> Daily Cost Trend</div>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-title">Recent Activity</div>
+            <div class="list-item">
+                <div class="item-info">
+                    <div>
+                        <div class="item-name">Gemini 1.5 Pro</div>
+                        <div class="item-meta">2026-02-25 14:20</div>
+                    </div>
                 </div>
-                <div class="card-content">
-                    <p><strong>主流定價：</strong><br>Input / Output 分開計價</p>
-                    <ul>
-                        <li>按量計費 (Pay-as-you-go)</li>
-                        <li>Cached 調用：<span class="discount-tag">↓ 90% 折扣</span></li>
-                        <li>Batch 批處理：<span class="discount-tag">↓ 50% 折扣</span></li>
-                    </ul>
-                    <div class="progress-bar-wrap">
-                        <div class="progress-label">
-                            <span>緩存命中率</span>
-                            <span>73%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: 73%"></div>
+                <div class="item-value">$0.45</div>
+            </div>
+            <div class="list-item">
+                <div class="item-info">
+                    <div>
+                        <div class="item-name">GPT-4o</div>
+                        <div class="item-meta">2026-02-25 12:05</div>
+                    </div>
+                </div>
+                <div class="item-value">$1.20</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Page 3: Agent Ranking -->
+    <div id="page-agents" class="container">
+        <div class="card">
+            <div class="card-title"><i data-lucide="users" size="14"></i> Agent Consumption Ranking</div>
+            <div id="agent-list">
+                <!-- Template for list item -->
+                <div class="list-item">
+                    <div class="item-info">
+                        <span class="item-rank">01</span>
+                        <div>
+                            <div class="item-name">Shinji (Dev)</div>
+                            <div class="item-meta">542,000 Tokens</div>
                         </div>
                     </div>
+                    <div class="item-value">$18.25</div>
                 </div>
-            </div>
-
-            <!-- SHINJI: 工作量評估 -->
-            <div class="card" data-section="shinji">
-                <div class="card-header">
-                    <h2>🟢 SHINJI: 工作量評估</h2>
-                    <span class="card-badge badge-pending">TBD</span>
-                </div>
-                <div class="card-content">
-                    <div class="status-tbd">
-                        <div class="tbd-icon">[ TBD ]</div>
-                        <p style="margin: 0; font-size: 0.85rem;">數據尚未回傳<br>處於評估階段...</p>
+                <div class="list-item">
+                    <div class="item-info">
+                        <span class="item-rank">02</span>
+                        <div>
+                            <div class="item-name">Rei (Analysis)</div>
+                            <div class="item-meta">310,000 Tokens</div>
+                        </div>
                     </div>
+                    <div class="item-value">$12.40</div>
+                </div>
+                <div class="list-item">
+                    <div class="item-info">
+                        <span class="item-rank">03</span>
+                        <div>
+                            <div class="item-name">Asuka (Marketing)</div>
+                            <div class="item-meta">120,000 Tokens</div>
+                        </div>
+                    </div>
+                    <div class="item-value">$4.80</div>
                 </div>
             </div>
-
-            <!-- 建議功能 -->
-            <div class="card" data-section="features">
-                <div class="card-header">
-                    <h2>⚡ 建議功能清單</h2>
-                    <span class="card-badge badge-active">v1.0</span>
-                </div>
-                <div class="card-content">
-                    <ul>
-                        <li><span class="highlight">即時消耗監控：</span>動態呈現各 Agent 的 Token 支出。</li>
-                        <li><span class="highlight">預算熔斷機制：</span>當成本接近閾值時自動告警。</li>
-                        <li><span class="highlight">緩存優化建議：</span>分析高頻重複請求以節省 90% 費用。</li>
-                        <li><span class="highlight">多維度報告：</span>按 Session 或 Subagent 彙總成本。</li>
-                    </ul>
-                </div>
-            </div>
-
         </div>
     </div>
 
-    <!-- Footer -->
-    <div class="footer">
-        NERV — INFORMATION ANALYSIS DIVISION // INTERNAL USE ONLY<br>
-        <span id="last-updated" style="color: #2a2a2a">LAST SYNC: —</span>
+    <!-- Page 4: Settings -->
+    <div id="page-settings" class="container">
+        <div class="card">
+            <div class="card-title"><i data-lucide="settings" size="14"></i> Model Pricing Config</div>
+            <div class="input-group">
+                <label>Model Name</label>
+                <select id="model-select">
+                    <option>Gemini 1.5 Pro</option>
+                    <option>Gemini 1.5 Flash</option>
+                    <option>GPT-4o</option>
+                    <option>Claude 3.5 Sonnet</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Input Price (per 1M tokens)</label>
+                <input type="number" value="3.5" step="0.1">
+            </div>
+            <div class="input-group">
+                <label>Output Price (per 1M tokens)</label>
+                <input type="number" value="10.5" step="0.1">
+            </div>
+            <button class="primary" onclick="alert('Settings Saved (Mock)')">Update Rates</button>
+        </div>
     </div>
 
-    <!-- 底部導覽列 (手機版) -->
-    <nav class="bottom-nav">
-        <div class="nav-item active">
-            <span class="nav-icon">📊</span>
-            <span>總覽</span>
+    <!-- Page 5: Simulator -->
+    <div id="page-simulator" class="container">
+        <div class="card">
+            <div class="card-title"><i data-lucide="calculator" size="14"></i> Cost Simulator</div>
+            <div class="input-group">
+                <label>Select Model</label>
+                <select id="sim-model">
+                    <option value="15">GPT-4o ($15/1M)</option>
+                    <option value="3.5">Gemini 1.5 Pro ($3.5/1M)</option>
+                    <option value="0.1">Gemini 1.5 Flash ($0.1/1M)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Input Tokens</label>
+                <input type="number" id="sim-input" placeholder="e.g. 100000">
+            </div>
+            <div class="input-group">
+                <label>Output Tokens</label>
+                <input type="number" id="sim-output" placeholder="e.g. 5000">
+            </div>
+            <button class="primary" onclick="simulateCost()">Calculate Estimate</button>
+
+            <div id="sim-result" style="display:none">
+                <div style="font-size:0.8rem; color:var(--text-dim)">ESTIMATED COST</div>
+                <div class="sim-price" id="sim-price-val">$0.00</div>
+            </div>
         </div>
-        <div class="nav-item">
-            <span class="nav-icon">📈</span>
-            <span>趨勢</span>
+    </div>
+
+    <nav>
+        <div class="nav-btn active" onclick="showPage('home')">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dash</span>
         </div>
-        <div class="nav-item">
-            <span class="nav-icon">🔔</span>
-            <span>告警</span>
+        <div class="nav-btn" onclick="showPage('trends')">
+            <i data-lucide="line-chart"></i>
+            <span>Trend</span>
         </div>
-        <div class="nav-item">
-            <span class="nav-icon">⚙️</span>
-            <span>設定</span>
+        <div class="nav-btn" onclick="showPage('agents')">
+            <i data-lucide="zap"></i>
+            <span>Agents</span>
+        </div>
+        <div class="nav-btn" onclick="showPage('simulator')">
+            <i data-lucide="calculator"></i>
+            <span>Sim</span>
+        </div>
+        <div class="nav-btn" onclick="showPage('settings')">
+            <i data-lucide="sliders"></i>
+            <span>Rate</span>
         </div>
     </nav>
 
-    <!-- PWA 安裝橫幅 -->
-    <div id="install-banner">
-        <div class="install-icon">📲</div>
-        <div class="install-text">
-            <strong>添加到主螢幕</strong>
-            像原生 App 一樣使用 Token Dashboard
-        </div>
-        <div class="install-actions">
-            <button class="btn-install" id="btn-install">安裝</button>
-            <button class="btn-dismiss" id="btn-dismiss">稍後</button>
-        </div>
-    </div>
-
     <script>
-    // ============================================
-    // Service Worker 註冊
-    // ============================================
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/dashboard-pwa/sw.js', {
-                scope: '/dashboard-pwa/'
-            }).then(reg => {
-                console.log('[NERV] Service Worker registered. Scope:', reg.scope);
-            }).catch(err => {
-                console.error('[NERV] Service Worker registration failed:', err);
-            });
-        });
-    }
+        // API Configuration
+        const API_BASE = 'http://localhost:3001/api';
+        
+        // Global chart references
+        let modelChart, trendChart;
 
-    // ============================================
-    // 離線/上線狀態偵測
-    // ============================================
-    const offlineBanner = document.getElementById('offline-banner');
+        // Initialize Lucide Icons
+        lucide.createIcons();
 
-    function updateOnlineStatus() {
-        if (!navigator.onLine) {
-            offlineBanner.classList.add('show');
-        } else {
-            offlineBanner.classList.remove('show');
+        // Format number with commas
+        function formatNumber(num) {
+            if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
         }
-    }
 
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
+        // Format currency
+        function formatCurrency(amount) {
+            return '$' + (amount || 0).toFixed(2);
+        }
 
-    // ============================================
-    // PWA 安裝提示
-    // ============================================
-    let deferredPrompt = null;
-    const installBanner = document.getElementById('install-banner');
-    const btnInstall = document.getElementById('btn-install');
-    const btnDismiss = document.getElementById('btn-dismiss');
-
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-
-        // 延遲 3 秒顯示安裝橫幅
-        setTimeout(() => {
-            if (!localStorage.getItem('pwa-install-dismissed')) {
-                installBanner.classList.add('show');
+        // Fetch data from API
+        async function fetchApi(endpoint) {
+            try {
+                const response = await fetch(API_BASE + endpoint);
+                const json = await response.json();
+                return json.data || json;
+            } catch (error) {
+                console.error('API Error:', error);
+                return null;
             }
-        }, 3000);
-    });
-
-    btnInstall?.addEventListener('click', async () => {
-        if (deferredPrompt) {
-            installBanner.classList.remove('show');
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log('[NERV] PWA install outcome:', outcome);
-            deferredPrompt = null;
         }
-    });
 
-    btnDismiss?.addEventListener('click', () => {
-        installBanner.classList.remove('show');
-        localStorage.setItem('pwa-install-dismissed', '1');
-    });
+        // Load Dashboard Data
+        async function loadDashboard() {
+            const usage = await fetchApi('/usage');
+            if (!usage) return;
 
-    // 安裝成功後隱藏
-    window.addEventListener('appinstalled', () => {
-        installBanner.classList.remove('show');
-        console.log('[NERV] PWA installed successfully. AT Field: MAXIMUM');
-    });
+            // Update Total Cost
+            const totalCost = usage.total?.total_cost || 0;
+            document.querySelector('#page-home .card-value').textContent = formatCurrency(totalCost);
 
-    // ============================================
-    // 最後同步時間
-    // ============================================
-    const lastUpdatedEl = document.getElementById('last-updated');
-    if (lastUpdatedEl) {
-        const now = new Date();
-        const timeStr = now.toLocaleString('zh-TW', {
-            year: 'numeric', month: '2-digit', day: '2-digit',
-            hour: '2-digit', minute: '2-digit'
+            // Update Total Tokens
+            const totalTokens = usage.total?.total_tokens || 0;
+            const tokenEl = document.querySelector('#page-home .stats-grid .card:nth-child(2) .card-value');
+            if (tokenEl) {
+                tokenEl.innerHTML = formatNumber(totalTokens) + '<span class="card-unit">tokens</span>';
+            }
+
+            // Update Model Distribution Chart
+            const costSummary = await fetchApi('/cost/summary');
+            if (costSummary && costSummary.byModel) {
+                const colors = ['#00ffcc', '#00d2ff', '#ff00ff', '#ffaa00', '#aa00ff', '#ff5500'];
+                const modelChartData = {
+                    labels: costSummary.byModel.map(m => m.model || 'Unknown'),
+                    datasets: [{
+                        data: costSummary.byModel.map(m => m.total_cost || 0),
+                        backgroundColor: colors.slice(0, costSummary.byModel.length),
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                };
+                
+                if (modelChart) {
+                    modelChart.data = modelChartData;
+                    modelChart.update();
+                }
+            }
+        }
+
+        // Load Trends Data
+        async function loadTrends() {
+            const daily = await fetchApi('/cost/daily?days=14');
+            if (!daily || !daily.length) return;
+
+            // Update Trend Chart
+            const labels = daily.map(d => d.date?.slice(5) || ''); // MM-DD format
+            const costs = daily.map(d => d.total_cost || 0);
+
+            if (trendChart) {
+                trendChart.data.labels = labels;
+                trendChart.data.datasets[0].data = costs;
+                trendChart.update();
+            }
+
+            // Update recent activity list
+            const recentList = document.querySelector('#page-trends .card:nth-child(2)');
+            if (recentList) {
+                const last5 = daily.slice(-5).reverse();
+                let html = '<div class="card-title">Recent Activity</div>';
+                for (const day of last5) {
+                    html += `
+                        <div class="list-item">
+                            <div class="item-info">
+                                <div>
+                                    <div class="item-name">Daily Usage</div>
+                                    <div class="item-meta">${day.date}</div>
+                                </div>
+                            </div>
+                            <div class="item-value">${formatCurrency(day.total_cost)}</div>
+                        </div>
+                    `;
+                }
+                recentList.innerHTML = html;
+            }
+        }
+
+        // Load Agent Rankings
+        async function loadAgents() {
+            const summary = await fetchApi('/cost/summary');
+            if (!summary || !summary.byAgent) return;
+
+            const agentList = document.getElementById('agent-list');
+            if (!agentList) return;
+
+            // Sort by cost descending
+            const sorted = summary.byAgent.sort((a, b) => (b.total_cost || 0) - (a.total_cost || 0));
+            
+            let html = '<div class="card-title"><i data-lucide="users" size="14"></i> Agent Consumption Ranking</div>';
+            
+            sorted.forEach((agent, index) => {
+                const rank = String(index + 1).padStart(2, '0');
+                const name = agent.agent_id.charAt(0).toUpperCase() + agent.agent_id.slice(1);
+                html += `
+                    <div class="list-item">
+                        <div class="item-info">
+                            <span class="item-rank">${rank}</span>
+                            <div>
+                                <div class="item-name">${name}</div>
+                                <div class="item-meta">${formatNumber(agent.total_tokens)} Tokens</div>
+                            </div>
+                        </div>
+                        <div class="item-value">${formatCurrency(agent.total_cost)}</div>
+                    </div>
+                `;
+            });
+
+            agentList.innerHTML = html;
+            lucide.createIcons();
+        }
+
+        // Load Settings/Rates
+        async function loadRates() {
+            const rates = await fetchApi('/rates');
+            if (!rates || !rates.length) return;
+
+            // Populate model select
+            const modelSelect = document.getElementById('model-select');
+            if (modelSelect) {
+                modelSelect.innerHTML = rates.map(r => 
+                    `<option value="${r.model}">${r.model}</option>`
+                ).join('');
+            }
+
+            // Store rates globally for simulator
+            window.ratesData = rates;
+        }
+
+        // Update simulator model options with real rates
+        function updateSimulatorRates() {
+            const simModel = document.getElementById('sim-model');
+            if (!simModel || !window.ratesData) return;
+
+            simModel.innerHTML = window.ratesData.map(r => {
+                const price = (r.input_rate + r.output_rate) / 2 * 1000000;
+                return `<option value="${price.toFixed(4)}">${r.model} ($${price.toFixed(2)}/1M)</option>`;
+            }).join('');
+        }
+
+        // Page Navigation
+        function showPage(pageId) {
+            // Update containers
+            document.querySelectorAll('.container').forEach(c => c.classList.remove('active'));
+            document.getElementById('page-' + pageId).classList.add('active');
+
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            const indexMap = { 'home': 0, 'trends': 1, 'agents': 2, 'simulator': 3, 'settings': 4 };
+            document.querySelectorAll('.nav-btn')[indexMap[pageId]].classList.add('active');
+
+            // Load page-specific data
+            if (pageId === 'home') loadDashboard();
+            if (pageId === 'trends') loadTrends();
+            if (pageId === 'agents') loadAgents();
+            if (pageId === 'settings') loadRates();
+            if (pageId === 'simulator') {
+                loadRates().then(updateSimulatorRates);
+            }
+
+            // Resize charts if visible
+            if (pageId === 'home' && modelChart) setTimeout(() => modelChart.resize(), 100);
+            if (pageId === 'trends' && trendChart) setTimeout(() => trendChart.resize(), 100);
+        }
+
+        // Charts Initialization
+        const ctxModel = document.getElementById('modelChart').getContext('2d');
+        modelChart = new Chart(ctxModel, {
+            type: 'doughnut',
+            data: {
+                labels: ['Loading...'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#00ffcc'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#888', font: { size: 10 } }
+                    }
+                }
+            }
         });
-        lastUpdatedEl.textContent = `LAST SYNC: ${timeStr}`;
-    }
 
-    // ============================================
-    // 模擬 Token 數據動畫
-    // ============================================
-    const statTokens = document.getElementById('stat-tokens');
-    let count = 0;
-    const target = 128;
-    const interval = setInterval(() => {
-        count = Math.min(count + Math.ceil(target / 20), target);
-        if (statTokens) statTokens.textContent = count + 'K';
-        if (count >= target) clearInterval(interval);
-    }, 50);
-
-    // ============================================
-    // 底部導覽列互動
-    // ============================================
-    document.querySelectorAll('.nav-item').forEach((item, index) => {
-        item.addEventListener('click', () => {
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            item.classList.add('active');
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        trendChart = new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Cost ($)',
+                    data: [],
+                    borderColor: '#00ffcc',
+                    backgroundColor: 'rgba(0, 255, 204, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#888' } },
+                    x: { grid: { display: false }, ticks: { color: '#888' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
         });
-    });
 
-    // ============================================
-    // 分頁導覽 (手機版)
-    // ============================================
-    document.querySelectorAll('.nav-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
+        // Simulator Logic
+        function simulateCost() {
+            const modelPrice = parseFloat(document.getElementById('sim-model').value) || 0;
+            const input = parseInt(document.getElementById('sim-input').value) || 0;
+            const output = parseInt(document.getElementById('sim-output').value) || 0;
+            
+            // Cost = (input * input_rate + output * output_rate) / 1M
+            // Using average price as simplified calculation
+            const cost = ((input + output * 3) / 1000000) * modelPrice;
+            
+            document.getElementById('sim-price-val').textContent = '$' + cost.toFixed(4);
+            document.getElementById('sim-result').style.display = 'block';
+        }
+
+        // Update rates from settings
+        async function updateRates() {
+            const modelSelect = document.getElementById('model-select');
+            const inputRate = parseFloat(document.querySelector('#page-settings input[type="number"]:nth-of-type(1)').value) || 0;
+            const outputRate = parseFloat(document.querySelector('#page-settings input[type="number"]:nth-of-type(2)').value) || 0;
+            
+            const model = modelSelect.value;
+            
+            try {
+                const response = await fetch(API_BASE + '/rates', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rates: [{ model, input_rate: inputRate / 1000000, output_rate: outputRate / 1000000 }]
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    alert('Rates updated successfully!');
+                    loadRates();
+                    updateSimulatorRates();
+                }
+            } catch (error) {
+                alert('Failed to update rates: ' + error.message);
+            }
+        }
+
+        // Override the settings button
+        document.addEventListener('DOMContentLoaded', () => {
+            const settingsBtn = document.querySelector('#page-settings .primary');
+            if (settingsBtn) {
+                settingsBtn.onclick = updateRates;
+            }
+            
+            // Initial data load
+            loadDashboard();
         });
-    });
-
-    console.log('[NERV] Token Dashboard PWA Initialized. Sync rate: 100%');
     </script>
 </body>
 </html>
